@@ -15,22 +15,31 @@ init() {
     echo 1
 }
 
-purge() {
+refresh() {
     echo 1
     # add a confirmation of sorts here
 }
 
 new() {
-    [ -z $1 ] && echo "please supply a name" && exit 1 
+    [ -z "$1" ] && echo "please supply a name" && exit 1 
 
-    # do some sed stuff here
-    cp $template_file "$data_dir/drafts/$1"
+    # sanitize input
+    sanitized=`echo -n "$1" | sed -e 's/[^A-Za-z0-9 _-]//g'| sed -e 's/ /-/g'`
+
+    # open in editor
+    $EDITOR "$data_dir/drafts/$sanitized"
 
 }
 
 publish() {
-    echo "Select which post to publish"
+    "Select which post to publish"
     ls -1 "$data_dir/drafts" | nl 
+
+    read -p '> ' choice
+    to_publish=`ls -1 "$data_dir/drafts/" | sed -n "$choice p"`
+    [ -z "$to_publish" ] && echo "Invalid choice" && exit 1
+
+
 }
 
 delete() {
@@ -55,10 +64,10 @@ delete() {
 
 case $1 in
     i|init) echo "init";;
-    n|new) new $2;;
+    n|new) new "$2";;
     p|publish) publish;;
     d|delete) echo "delete";;
-    D|purge) echo "purge";;
+    r|refresh) echo "refresh";;
     *) echo "helper" && exit 1;;
 esac
 
