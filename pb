@@ -12,7 +12,10 @@ data_dir="blog"
 
 
 init() {
-    echo 1
+    echo "initing blog"
+    mkdir -p "$data_dir/drafts" &&\
+    mkdir -p "$data_dir/published" &&\
+    touch "$data_dir/database" 
 }
 
 refresh() {
@@ -32,13 +35,18 @@ new() {
 }
 
 publish() {
-    "Select which post to publish"
+    echo "Select which post to publish"
     ls -1 "$data_dir/drafts" | nl 
 
     read -p '> ' choice
     to_publish=`ls -1 "$data_dir/drafts/" | sed -n "$choice p"`
     [ -z "$to_publish" ] && echo "Invalid choice" && exit 1
 
+    cat $template_file |\
+        sed -e "s/{{TITLE}}/$to_publish/g" |\
+        sed -e "s/{{DATE}}/`date +'%a, %b %d %H:%M'`/g" |\
+        sed -e "/{{BODY}}/r $data_dir/drafts/$to_publish" |\
+        sed -e "/{{BODY}}/d" # rly ugly for now
 
 }
 
@@ -57,13 +65,10 @@ delete() {
 
 
 # check if blog dir exists
-[ ! -d $data_dir ] && echo "initing blog" &&\
-    mkdir -p "$data_dir/drafts" &&\
-    mkdir -p "$data_dir/published" &&\
-    touch "$data_dir/database" 
+[ ! -d $data_dir ]  && init
 
 case $1 in
-    i|init) echo "init";;
+    i|init) init;;
     n|new) new "$2";;
     p|publish) publish;;
     d|delete) echo "delete";;
