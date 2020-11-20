@@ -15,12 +15,14 @@ init() {
     echo "initing blog"
     mkdir -p "$data_dir/drafts" &&\
     mkdir -p "$data_dir/published" &&\
-    touch "$data_dir/database" 
+    mkdir -p "$data_dir/html" 
 }
 
 refresh() {
     echo 1
     # add a confirmation of sorts here
+
+    # deletes all html files and republishes all published files
 }
 
 new() {
@@ -30,29 +32,52 @@ new() {
     sanitized=`echo -n "$1" | sed -e 's/[^A-Za-z0-9 _-]//g'| sed -e 's/ /-/g'`
 
     # open in editor
-    $EDITOR "$data_dir/drafts/$sanitized"
-
+    $EDITOR "$data_dir/drafts/$sanitized.draft.html"
 }
 
 publish() {
+    
+    drafts=`ls -1 "$data_dir/drafts" | sed -e 's/\.draft\.html$//'`
+    [ -z "$drafts" ] && echo "No drafts to publish" && exit 0
+
     echo "Select which post to publish"
-    ls -1 "$data_dir/drafts" | nl 
+    echo "$drafts" | nl 
 
     read -p '> ' choice
     to_publish=`ls -1 "$data_dir/drafts/" | sed -n "$choice p"`
     [ -z "$to_publish" ] && echo "Invalid choice" && exit 1
 
     cat $template_file |\
-        sed -e "s/{{TITLE}}/$to_publish/g" |\
-        sed -e "s/{{DATE}}/`date +'%a, %b %d %H:%M'`/g" |\
+        sed -e "s/{{TITLE}}/$to_publish/g;
+            s/{{DATE}}/`date +'%a, %b %d %H:%M'`/g" |\
         sed -e "/{{BODY}}/r $data_dir/drafts/$to_publish" |\
-        sed -e "/{{BODY}}/d" # rly ugly for now
+        sed -e "/{{BODY}}/d" \
+       > "$data_dir/html/${to_publish%.draft.html}.html" 
+
+    mv "$data_dir/drafts/$to_publish" "$data_dir/published/"
+
+    # Add new entry to blog index
+    #sed -e ""
+
 
 }
 
+
 delete() {
+    published=`ls -1 "$data_dir/published" | sed -e 's/\.draft\.html$//'`
+    [ -z "$published" ] && echo "No posts to delete" && exit 0
+
     echo "Select which post to delete"
-    ls -1 "$data_dir/published" | nl 
+    echo "$published" | nl 
+
+    read -p '> ' choice
+    to_delete=`ls -1 "$data_dir/published/" | sed -n "$choice p"`
+    [ -z "$to_delete" ] && echo "Invalid choice" && exit 1
+
+    mv "$data_dir/published/$to_delete" "$data_dir/drafts/" &&\
+        rm "$data_dir/html/${to_delete%.draft.html}.html"
+
+    # remove entry from blog index
 }
 
 # check to see if all required files are present
@@ -71,8 +96,8 @@ case $1 in
     i|init) init;;
     n|new) new "$2";;
     p|publish) publish;;
-    d|delete) echo "delete";;
+    d|delete) delete;;
     r|refresh) echo "refresh";;
-    *) echo "helper" && exit 1;;
+    h|*) echo "helper" && exit 1;;
 esac
 
