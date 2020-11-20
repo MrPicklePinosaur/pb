@@ -12,21 +12,31 @@ data_dir="blog"
 
 
 init() {
-    echo "initing blog"
+    read -p "Initialize blog? [y/n] " ask
+    [ "$ask" != "y" ] && exit 0
+
     mkdir -p "$data_dir/drafts" &&\
     mkdir -p "$data_dir/published" &&\
     mkdir -p "$data_dir/html" 
+
+    echo "Created blog files"
 }
 
 refresh() {
-    echo 1
-    # add a confirmation of sorts here
+    start_token="<!-- BLOG START -->"
+    end_token="<!-- BLOG END -->"
+
+    read -p "Are you sure you want to refresh? [y/n] " ask
+    [ "$ask" != "y" ] && exit 0
+
+    # delete everything between tokens
+    sed -i "/$start_token/,/$end_token/{/$start_token/!{/$end_token/!d}}" "$blog_index_file"
 
     # deletes all html files and republishes all published files
 }
 
 new() {
-    [ -z "$1" ] && echo "please supply a name" && exit 1 
+    [ -z "$1" ] && echo "Please give your blog post a name (you should put it inside quotations)" && exit 1 
 
     # sanitize input
     sanitized=`echo -n "$1" | sed -e 's/[^A-Za-z0-9 _-]//g'| sed -e 's/ /-/g'`
@@ -40,7 +50,7 @@ publish() {
     drafts=`ls -1 "$data_dir/drafts" | sed -e 's/\.draft\.html$//'`
     [ -z "$drafts" ] && echo "No drafts to publish" && exit 0
 
-    echo "Select which post to publish"
+    echo "Select which draft to publish"
     echo "$drafts" | nl 
 
     read -p '> ' choice
@@ -56,9 +66,8 @@ publish() {
 
     mv "$data_dir/drafts/$to_publish" "$data_dir/published/"
 
-    # Add new entry to blog index
-    #sed -e ""
-
+    # Add new entry to blog index (do something about indent??)
+    sed -i "/<!-- BLOG START -->/ a <h3>$to_publish<\\/h3>" "$blog_index_file"
 
 }
 
@@ -97,7 +106,7 @@ case $1 in
     n|new) new "$2";;
     p|publish) publish;;
     d|delete) delete;;
-    r|refresh) echo "refresh";;
-    h|*) echo "helper" && exit 1;;
+    r|refresh) refresh;;
+    h|*) echo "helper";;
 esac
 
