@@ -5,6 +5,7 @@
 blog_index_file="blogindex.html"
 rolling_file="rolling.html"
 template_file="template.html"
+index_entry_template="index_entry.html"
 rss_file="rss.xml"
 data_dir="blog"
 
@@ -15,9 +16,9 @@ init() {
     read -p "Initialize blog? [y/n] " ask
     [ "$ask" != "y" ] && exit 0
 
-    mkdir -p "$data_dir/drafts" &&\
-    mkdir -p "$data_dir/published" &&\
-    mkdir -p "$data_dir/html" 
+    mkdir -p "$data_dir/drafts" "$data_dir/published" "$data_dir/html" "$data_dir/templates" 
+
+    echo '<p id="{{TITLE}}">{{TITLE}}</p>' >> "$data_dir/templates/$index_entry_template"
 
     echo "Created blog files"
 }
@@ -29,8 +30,10 @@ refresh() {
     read -p "Are you sure you want to refresh? [y/n] " ask
     [ "$ask" != "y" ] && exit 0
 
-    # delete everything between tokens
+    # delete everything between tokens (remove dupe code)
     sed -i "/$start_token/,/$end_token/{/$start_token/!{/$end_token/!d}}" "$blog_index_file"
+    sed -i "/$start_token/,/$end_token/{/$start_token/!{/$end_token/!d}}" "$rolling_file"
+    sed -i "/$start_token/,/$end_token/{/$start_token/!{/$end_token/!d}}" "$rss_file"
 
     # deletes all html files and republishes all published files
 }
@@ -45,6 +48,14 @@ new() {
     $EDITOR "$data_dir/drafts/$sanitized.draft.html"
 }
 
+sub() {
+    cat - |\
+        sed -e "s/{{TITLE}}/$1/g;
+            s/{{DATE}}/`date +'%a, %b %d %H:%M'`/g" |\
+        sed -e "/{{BODY}}/r $data_dir/drafts/$1" |\
+        sed -e "/{{BODY}}/d" 
+}
+
 publish() {
     
     drafts=`ls -1 "$data_dir/drafts" | sed -e 's/\.draft\.html$//'`
@@ -55,22 +66,20 @@ publish() {
 
     read -p '> ' choice
     to_publish=`ls -1 "$data_dir/drafts/" | sed -n "$choice p"`
+    to_publish=${to_publish%.draft.html}
     [ -z "$to_publish" ] && echo "Invalid choice" && exit 1
 
-    cat $template_file |\
-        sed -e "s/{{TITLE}}/$to_publish/g;
-            s/{{DATE}}/`date +'%a, %b %d %H:%M'`/g" |\
-        sed -e "/{{BODY}}/r $data_dir/drafts/$to_publish" |\
-        sed -e "/{{BODY}}/d" \
-       > "$data_dir/html/${to_publish%.draft.html}.html" 
-
-    mv "$data_dir/drafts/$to_publish" "$data_dir/published/"
+    cat $template_file | sub "$to_publish" \
+       > "$data_dir/html/$to_publish.html" 
 
     # Add new entry to blog index (do something about indent??)
-    sed -i "/<!-- BLOG START -->/ a <h3>$to_publish<\\/h3>" "$blog_index_file"
+    sed -i "/<!-- BLOG START -->/ a\
+        `cat "$data_dir/templates/$index_entry_template" | sub "$to_publish"`" "$blog_index_file"
+    #also clean up this bracket mess ^
+
+    mv "$data_dir/drafts/$to_publish.draft.html" "$data_dir/published/"
 
 }
-
 
 delete() {
     published=`ls -1 "$data_dir/published" | sed -e 's/\.draft\.html$//'`
@@ -81,19 +90,19 @@ delete() {
 
     read -p '> ' choice
     to_delete=`ls -1 "$data_dir/published/" | sed -n "$choice p"`
+    to_delete=${to_delete%.draft.html}
     [ -z "$to_delete" ] && echo "Invalid choice" && exit 1
 
-    mv "$data_dir/published/$to_delete" "$data_dir/drafts/" &&\
-        rm "$data_dir/html/${to_delete%.draft.html}.html"
+    mv "$data_dir/published/$to_delete.draft.html" "$data_dir/drafts/" &&\
+        rm "$data_dir/html/$to_delete.html"
 
-    # remove entry from blog index
+    # remove entry from blog index (broken rn)
+    #entry=`cat "$data_dir/templates/$index_entry_template" | sub "$to_publish"`
+    #sed -i "/$entry/ d" "$blog_index_file"
 }
 
 # check to see if all required files are present
-[ ! -f $blog_index_file ] && echo "missing $blog_index_file" && exit 1
-[ ! -f $rolling_file ] && echo "missing $rolling_file" && exit 1
-[ ! -f $template_file ] && echo "missing $template_file" && exit 1
-[ ! -f $rss_file ] && echo "missing $rss_file" && exit 1
+[ -f $blog_index_file ] && [ -f $rolling_file ] && [ -f $template_file ] && [ -f $rss_file ] || { echo "You are missing a file, please check that you have $blog_index_file, $template_file, $rolling_file and $rss_file in your home directory" && exit 1; }
 
 # possibly also check to see if index and rolling have the proper headers
 

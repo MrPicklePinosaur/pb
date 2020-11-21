@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0">
+
+<channel>
+<title>Blog Title</title>
+<link>Link to Site</link>
+<description>Description</description>
+
+<!-- BLOG START -->
+<!-- BLOG END -->
+
+</channel>
+
+</rss>
