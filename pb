@@ -2,15 +2,22 @@
 
 # pinosaur's blog script
 
+data_dir="blog"
+website_url="https://www.youtube.com/watch?v=oHg5SJYRHA0/" 
+
 blog_index_file="blogindex.html"
 rolling_file="rolling.html"
-template_file="template.html"
-index_entry_template="index_entry.html"
 rss_file="rss.xml"
-data_dir="blog"
+
+blog_template="template.html"
+index_template="index_entry.html"
+rolling_template="rolling_entry.html"
+rss_template="rss_entry.html"
+
+start_token="<!-- BLOG START -->"
+end_token="<!-- BLOG END -->"
 
 [ ! -z "$EDITOR" ] && EDITOR="vim"
-
 
 init() {
     read -p "Initialize blog? [y/n] " ask
@@ -18,14 +25,15 @@ init() {
 
     mkdir -p "$data_dir/drafts" "$data_dir/published" "$data_dir/html" "$data_dir/templates" 
 
-    echo '<p id="{{TITLE}}">{{TITLE}}</p>' >> "$data_dir/templates/$index_entry_template"
+    echo '<p id="{{TITLE}}">{{TITLE}}</p>' >> "$data_dir/templates/$index_template"
+    echo -e '<div id="{{TITLE}}">\n<h2>{{TITLE}}</h2>\n<p>{{DATE}}</p></div>' >> "$data_dir/templates/$rolling_template"
+    echo -e '<item>\n<title>{{TITLE}}</title>\n<link></link>\n<description><\description>\n<\item>' \
+        >> "$data_dir/templates/$rss_template"
 
     echo "Created blog files"
 }
 
 refresh() {
-    start_token="<!-- BLOG START -->"
-    end_token="<!-- BLOG END -->"
 
     read -p "Are you sure you want to refresh? [y/n] " ask
     [ "$ask" != "y" ] && exit 0
@@ -36,6 +44,7 @@ refresh() {
     sed -i "/$start_token/,/$end_token/{/$start_token/!{/$end_token/!d}}" "$rss_file"
 
     # deletes all html files and republishes all published files
+    echo "Refreshed."
 }
 
 new() {
@@ -50,10 +59,11 @@ new() {
 
 sub() {
     cat - |\
-        sed -e "s/{{TITLE}}/$1/g;
-            s/{{DATE}}/`date +'%a, %b %d %H:%M'`/g" |\
-        sed -e "/{{BODY}}/r $data_dir/drafts/$1" |\
-        sed -e "/{{BODY}}/d" 
+        sed "s/{{TITLE}}/$1/g;
+            s/{{DATE}}/`date +'%a, %b %d %H:%M'`/g;
+            s/{{URL}}/$website_url\\/$1/g" |\
+        sed "/{{BODY}}/r $data_dir/drafts/$1" |\
+        sed "/{{BODY}}/d" 
 }
 
 publish() {
@@ -69,13 +79,15 @@ publish() {
     to_publish=${to_publish%.draft.html}
     [ -z "$to_publish" ] && echo "Invalid choice" && exit 1
 
-    cat $template_file | sub "$to_publish" \
+    cat $blog_template | sub "$to_publish" \
        > "$data_dir/html/$to_publish.html" 
 
     # Add new entry to blog index (do something about indent??)
-    sed -i "/<!-- BLOG START -->/ a\
-        `cat "$data_dir/templates/$index_entry_template" | sub "$to_publish"`" "$blog_index_file"
-    #also clean up this bracket mess ^
+    sed -i "/$start_token/ a\
+        <!-- ID:$to_publish START -->\n`cat "$data_dir/templates/$index_template" | sub "$to_publish"`\n<!-- ID:$to_publish END -->" "$blog_index_file"
+
+    sed -i "/$start_token/ a\
+        <!-- ID:$to_publish START -->\n`cat "$data_dir/templates/$rolling_template" | sub "$to_publish"`\n<!-- ID:$to_publish END -->" "$rolling_file"
 
     mv "$data_dir/drafts/$to_publish.draft.html" "$data_dir/published/"
 
@@ -96,13 +108,14 @@ delete() {
     mv "$data_dir/published/$to_delete.draft.html" "$data_dir/drafts/" &&\
         rm "$data_dir/html/$to_delete.html"
 
-    # remove entry from blog index (broken rn)
-    #entry=`cat "$data_dir/templates/$index_entry_template" | sub "$to_publish"`
-    #sed -i "/$entry/ d" "$blog_index_file"
+    # remove entry from blog index 
+    sed -i "/<!-- ID:$to_delete START -->/,/<!-- ID:$to_delete END -->/ d" "$blog_index_file"
+    sed -i "/<!-- ID:$to_delete START -->/,/<!-- ID:$to_delete END -->/ d" "$rolling_file"
+
 }
 
 # check to see if all required files are present
-[ -f $blog_index_file ] && [ -f $rolling_file ] && [ -f $template_file ] && [ -f $rss_file ] || { echo "You are missing a file, please check that you have $blog_index_file, $template_file, $rolling_file and $rss_file in your home directory" && exit 1; }
+[ -f $blog_index_file ] && [ -f $rolling_file ] && [ -f $blog_template ] && [ -f $rss_file ] || { echo "You are missing a file, please check that you have $blog_index_file, $template_file, $rolling_file and $rss_file in your home directory" && exit 1; }
 
 # possibly also check to see if index and rolling have the proper headers
 
