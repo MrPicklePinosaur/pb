@@ -14,9 +14,6 @@ index_template="index_entry.html"
 rolling_template="rolling_entry.html"
 rss_template="rss_entry.html"
 
-start_token="<!-- BLOG START -->"
-end_token="<!-- BLOG END -->"
-
 [ ! -z "$EDITOR" ] && EDITOR="vim"
 
 init() {
@@ -39,78 +36,63 @@ refresh() {
     [ "$ask" != "y" ] && exit 0
 
     # delete everything between tokens (remove dupe code)
-    sed -i "/$start_token/,/$end_token/{/$start_token/!{/$end_token/!d}}" "$blog_index_file"
-    sed -i "/$start_token/,/$end_token/{/$start_token/!{/$end_token/!d}}" "$rolling_file"
-    sed -i "/$start_token/,/$end_token/{/$start_token/!{/$end_token/!d}}" "$rss_file"
+    echo -e "$blog_index_file\n$rolling_file\n$rss_file" | xargs sed -i "/<!-- BLOG START -->/,/<!-- BLOG END -->/{/<!-- BLOG START -->/!{/<!-- BLOG END -->/!d}}"
 
     # deletes all html files and republishes all published files
+
     echo "Refreshed."
 }
 
 new() {
     [ -z "$1" ] && echo "Please give your blog post a name (you should put it inside quotations)" && exit 1 
-
-    # sanitize input
     sanitized=`echo -n "$1" | sed -e 's/[^A-Za-z0-9 _-]//g'| sed -e 's/ /-/g'`
-
-    # open in editor
     $EDITOR "$data_dir/drafts/$sanitized.draft.html"
 }
 
 sub() {
     cat - |\
-        sed "s/{{TITLE}}/$1/g;
-            s/{{DATE}}/`date +'%a, %b %d %H:%M'`/g;
-            s/{{URL}}/$website_url\\/$1/g" |\
+        sed "s|{{TITLE}}|$1|g;
+            s|{{DATE}}|`date +'%a, %b %d %H:%M'`|g;
+            s|{{URL}}|$website_url/$1|g" |\
         sed "/{{BODY}}/r $data_dir/drafts/$1" |\
         sed "/{{BODY}}/d" 
 }
 
+# $1 is directory
+choose() { # working on abstraction
+    options=`ls -1 "$1" | sed 's/\.draft\.html$//;s/\.html$//'` 
+    [ -z "$options" ] && echo "No drafts to publish" && exit 0
+    echo "$options" | nl
+    read -p 'Choose an entry by number > ' choice
+    chosen=`ls -1 "$1" | sed -n "$choice p"`
+    [ -z "$chosen" ] && echo "Invalid choice" && exit 1
+}
+
 publish() {
     
-    drafts=`ls -1 "$data_dir/drafts" | sed -e 's/\.draft\.html$//'`
-    [ -z "$drafts" ] && echo "No drafts to publish" && exit 0
-
-    echo "Select which draft to publish"
-    echo "$drafts" | nl 
-
-    read -p '> ' choice
-    to_publish=`ls -1 "$data_dir/drafts/" | sed -n "$choice p"`
-    to_publish=${to_publish%.draft.html}
-    [ -z "$to_publish" ] && echo "Invalid choice" && exit 1
+    choose "$data_dir/drafts"
+    to_publish=${chosen%.draft.html}
 
     cat $blog_template | sub "$to_publish" \
        > "$data_dir/html/$to_publish.html" 
 
     # Add new entry to blog index (do something about indent??)
-    sed -i "/$start_token/ a\
+    sed -i "/<!-- BLOG START -->/ a\
         <!-- ID:$to_publish START -->\n`cat "$data_dir/templates/$index_template" | sub "$to_publish"`\n<!-- ID:$to_publish END -->" "$blog_index_file"
-
-    sed -i "/$start_token/ a\
-        <!-- ID:$to_publish START -->\n`cat "$data_dir/templates/$rolling_template" | sub "$to_publish"`\n<!-- ID:$to_publish END -->" "$rolling_file"
 
     mv "$data_dir/drafts/$to_publish.draft.html" "$data_dir/published/"
 
 }
 
 delete() {
-    published=`ls -1 "$data_dir/published" | sed -e 's/\.draft\.html$//'`
-    [ -z "$published" ] && echo "No posts to delete" && exit 0
-
-    echo "Select which post to delete"
-    echo "$published" | nl 
-
-    read -p '> ' choice
-    to_delete=`ls -1 "$data_dir/published/" | sed -n "$choice p"`
-    to_delete=${to_delete%.draft.html}
-    [ -z "$to_delete" ] && echo "Invalid choice" && exit 1
+    choose "$data_dir/published"
+    to_delete=${chosen%.draft.html}
 
     mv "$data_dir/published/$to_delete.draft.html" "$data_dir/drafts/" &&\
         rm "$data_dir/html/$to_delete.html"
 
-    # remove entry from blog index 
-    sed -i "/<!-- ID:$to_delete START -->/,/<!-- ID:$to_delete END -->/ d" "$blog_index_file"
-    sed -i "/<!-- ID:$to_delete START -->/,/<!-- ID:$to_delete END -->/ d" "$rolling_file"
+    # remove entries from files 
+    echo -e "$blog_index_file\n$rolling_file\n$rss_file" | xargs sed -i "/<!-- ID:$to_delete START -->/,/<!-- ID:$to_delete END -->/ d"
 
 }
 
