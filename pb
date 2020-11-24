@@ -17,7 +17,7 @@ rss_template="rss_entry.html"
 [ ! -z "$EDITOR" ] && EDITOR="vim"
 
 init() {
-    read -p "Initialize blog? [y/n] " ask
+    read -p "Initialize blog here? [y/n] " ask
     [ "$ask" != "y" ] && exit 0
 
     mkdir -p "$data_dir/drafts" "$data_dir/published" "$data_dir/html" "$data_dir/templates" 
@@ -76,11 +76,18 @@ publish() {
     cat $blog_template | sub "$to_publish" \
        > "$data_dir/html/$to_publish.html" 
 
+    index_entry="$(cat "$data_dir/templates/$index_template" | sub "$to_publish")"
+
+    #sed is breaking when trying to add multiple lines for some reason
+
     # Add new entry to blog index (do something about indent??)
-    sed -i "/<!-- BLOG START -->/ a\
-        <!-- ID:$to_publish START -->\n`cat "$data_dir/templates/$index_template" | sub "$to_publish"`\n<!-- ID:$to_publish END -->" "$blog_index_file"
+
+    # echo -e "/<!-- BLOG START -->/a \n<!-- ID:$to_publish START -->\n$index_entry\n<!-- ID:$to_publish END -->"
+    sed -i "/<!-- BLOG START -->/a <!-- ID:$to_publish START -->\n${index_entry}\n<!-- ID:$to_publish END -->" "$blog_index_file"
 
     mv "$data_dir/drafts/$to_publish.draft.html" "$data_dir/published/"
+
+    echo "Successfully published $to_publish"
 
 }
 
@@ -94,6 +101,7 @@ delete() {
     # remove entries from files 
     echo -e "$blog_index_file\n$rolling_file\n$rss_file" | xargs sed -i "/<!-- ID:$to_delete START -->/,/<!-- ID:$to_delete END -->/ d"
 
+    echo "Successfully deleted $to_delete"
 }
 
 # check to see if all required files are present
@@ -103,10 +111,9 @@ delete() {
 
 
 # check if blog dir exists
-[ ! -d $data_dir ]  && init
+[ ! -d $data_dir ]  && init && exit
 
 case $1 in
-    i|init) init;;
     n|new) new "$2";;
     p|publish) publish;;
     d|delete) delete;;
