@@ -51,6 +51,8 @@ new() {
 
 sub() {
     cat - |\
+        sed "1i <!-- ID:$1 START -->" |\
+        sed  "\$a <!-- ID:$1 END -->" |\
         sed "s|{{TITLE}}|$1|g;
             s|{{DATE}}|`date +'%a, %b %d %H:%M'`|g;
             s|{{URL}}|$website_url/$1|g" |\
@@ -76,14 +78,17 @@ publish() {
     cat $blog_template | sub "$to_publish" \
        > "$data_dir/html/$to_publish.html" 
 
-    index_entry="$(cat "$data_dir/templates/$index_template" | sub "$to_publish")"
-
-    #sed is breaking when trying to add multiple lines for some reason
+    temp_index="$(mktemp)" # probably bad idea
+    cat "$data_dir/templates/$index_template" | sub "$to_publish" >> $temp_index
+    temp_rolling="$(mktemp)" 
+    cat "$data_dir/templates/$rolling_template" | sub "$to_publish" >> $temp_rolling
+    temp_rss="$(mktemp)" 
+    cat "$data_dir/templates/$rss_template" | sub "$to_publish" >> $temp_rss
 
     # Add new entry to blog index (do something about indent??)
-
-    # echo -e "/<!-- BLOG START -->/a \n<!-- ID:$to_publish START -->\n$index_entry\n<!-- ID:$to_publish END -->"
-    sed -i "/<!-- BLOG START -->/a <!-- ID:$to_publish START -->\n${index_entry}\n<!-- ID:$to_publish END -->" "$blog_index_file"
+    sed -i "/<!-- BLOG START -->/r $temp_index" "$blog_index_file"
+    sed -i "/<!-- BLOG START -->/r $temp_rolling" "$rolling_file"
+    sed -i "/<!-- BLOG START -->/r $temp_rss" "$rss_file"
 
     mv "$data_dir/drafts/$to_publish.draft.html" "$data_dir/published/"
 
