@@ -22,8 +22,8 @@ init() {
 
     mkdir -p "$data_dir/drafts" "$data_dir/published" "$data_dir/html" "$data_dir/templates" 
 
-    echo '<p id="{{TITLE}}">{{TITLE}}</p>' >> "$data_dir/templates/$index_template"
-    echo -e '<div id="{{TITLE}}">\n<h2>{{TITLE}}</h2>\n<p>{{DATE}}</p></div>' >> "$data_dir/templates/$rolling_template"
+    echo '<p>{{TITLE}}</p>' >> "$data_dir/templates/$index_template"
+    echo -e '<div>\n<h2>{{TITLE}}</h2>\n<p>{{DATE}}</p>\n<p>{{BODY}}</p>\n</div>' >> "$data_dir/templates/$rolling_template"
     echo -e '<item>\n<title>{{TITLE}}</title>\n<link></link>\n<description><\description>\n<\item>' \
         >> "$data_dir/templates/$rss_template"
 
@@ -33,19 +33,19 @@ init() {
 refresh() {
 
     read -p "Are you sure you want to refresh? [y/n] " ask
-    [ "$ask" != "y" ] && exit 0
+    [ "$ask" != "y" ] && echo "Aborting..." && exit 0
 
     # delete everything between tokens (remove dupe code)
     echo -e "$blog_index_file\n$rolling_file\n$rss_file" | xargs sed -i "/<!-- BLOG START -->/,/<!-- BLOG END -->/{/<!-- BLOG START -->/!{/<!-- BLOG END -->/!d}}"
 
     # deletes all html files and republishes all published files
-
-    echo "Refreshed."
+    echo "Successfully refreshed."
 }
 
 new() {
     [ -z "$1" ] && echo "Please give your blog post a name (you should put it inside quotations)" && exit 1 
-    sanitized=`echo -n "$1" | sed -e 's/[^A-Za-z0-9 _-]//g'| sed -e 's/ /-/g'`
+    sanitized=`echo -n "$1" | sed -e 's/[^A-Za-z0-9 _-]//g'`
+    [ -f "$data_dir/drafts/$sanitized.draft.html" ] && echo "Blog of that name already exists." && exit 1
     $EDITOR "$data_dir/drafts/$sanitized.draft.html"
 }
 

@@ -17,11 +17,13 @@ In each of these files, you need to include the comments:
 
 # Usage
 ### n / new
+Takes in a name for your blog post, put the name inside quotations if you want to have spaces. Also, only alphanumeric characters, underscores, dashes and spaces are allowed in the blog name (at this point).
 
 ### p / publish
+Publishes a draft, which means that it takes the html snippet you wrote and shoves it inside your template file.
 
 ### d / delete
-
+Deletes an already published blog post, this does not delete your draft.
 
 # Configuration
 For more fine tuned configuration, navigate to the data\_dir directory that was created (by default it's blog/) and find the templates folder.
