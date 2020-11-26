@@ -25,6 +25,13 @@ init() {
 
     echo "Successfully created blog files."
 }
+refresh() {
+    read -p "Are you sure you want to refresh? [y/n] " ask
+    [ "$ask" != "y" ] && echo "Aborting..." && exit 0
+
+    echo -e "$blog_index_file\n$rolling_file\n$rss_file" | xargs sed -i "/<!-- BLOG START -->/,/<!-- BLOG END -->/{/<!-- BLOG START -->/!{/<!-- BLOG END -->/!d}}"
+    echo "Successfully refreshed."
+}
 
 backup() {
     backup_name=`mktemp --tmpdir="$data_dir/backups" -d "backup_$(date +'%b-%d')_XXX"`
@@ -108,5 +115,6 @@ case $1 in
     p|publish) publish;;
     d|delete) delete;;
     b|backup) backup;;
+    r|refresh) refresh;;
     h|*) echo -e "=-=-=-=-=-=-= Pb =-=-=-=-=-=-=\nAvailable commands:\nn - new blog post\np - publish existing blog post\nd - deletes published post\nb - creates a backup";;
 esac
