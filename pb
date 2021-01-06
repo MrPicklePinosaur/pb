@@ -2,7 +2,7 @@
 # pinosaur's blog script
 
 data_dir="blog"
-website_url="https://www.youtube.com/watch?v=oHg5SJYRHA0/" 
+website_url="https://www.youtube.com/watch?v=oHg5SJYRHA0/" # no ending slash
 blog_index_file="blogindex.html"
 rolling_file="rolling.html"
 rss_file="rss.xml"
@@ -18,7 +18,7 @@ init() {
     [ "$ask" != "y" ] && echo "Cancelled init" && exit 0
 
     mkdir -p "$data_dir/drafts" "$data_dir/published" "$data_dir/html" "$data_dir/templates" "$data_dir/backups"
-    echo '<p>{{TITLE}}</p>' >> "$data_dir/templates/$index_template"
+    echo '<a href="{{URL}}">{{TITLE}}</a>' >> "$data_dir/templates/$index_template"
     echo -e '<div>\n<h2>{{TITLE}}</h2>\n<p>{{DATE}}</p>\n<p>{{BODY}}</p>\n</div>' >> "$data_dir/templates/$rolling_template"
     echo -e '<item>\n<title>{{TITLE}}</title>\n<link></link>\n<description><\description>\n<\item>' \
         >> "$data_dir/templates/$rss_template"
@@ -53,8 +53,8 @@ sub() {
         sed  "\$a <!-- ID:$1 END -->" |\
         sed "s|{{TITLE}}|$1|g;
             s|{{DATE}}|`date +'%a, %b %d %H:%M'`|g;
-            s|{{URL}}|$website_url/$1|g" |\
-        sed "/{{BODY}}/r $data_dir/drafts/$1" |\
+            s|{{URL}}|$website_url/blog/html/$1.html|g" |\
+        sed "/{{BODY}}/r $data_dir/drafts/$1.draft.html" |\
         sed "/{{BODY}}/d" 
 }
 
@@ -105,7 +105,7 @@ delete() {
 }
 
 # check to see if all required files are present
-[ -f $blog_index_file ] && [ -f $rolling_file ] && [ -f $blog_template ] && [ -f $rss_file ] || { echo "You are missing a file, please check that you have $blog_index_file, $template_file, $rolling_file and $rss_file in your home directory" && exit 1; }
+[ -f $blog_index_file ] && [ -f $rolling_file ] && [ -f $blog_template ] && [ -f $rss_file ] || { echo "You are missing a file, please check that you have $blog_index_file, $blog_template, $rolling_file and $rss_file in your home directory" && exit 1; }
 
 # check if blog dir exists
 [ ! -d $data_dir ]  && init && exit 0
